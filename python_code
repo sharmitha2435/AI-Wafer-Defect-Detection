@@ -1,0 +1,83 @@
+import tensorflow as tf
+from tensorflow.keras import layers, models
+from tensorflow.keras.utils import image_dataset_from_directory
+
+# ================= PATHS =================
+train_dir = r"C:\Sharmitha\wafer_defect_dataset_50_varied"
+val_dir   = r"C:\Sharmitha\validation"
+
+# ================= SETTINGS =================
+img_size = (128, 128)
+batch_size = 32
+epochs = 15
+
+# ================= LOAD DATA =================
+print("Loading training dataset...")
+train_ds = image_dataset_from_directory(
+    train_dir,
+    image_size=img_size,
+    batch_size=batch_size
+)
+
+print("Loading validation dataset...")
+val_ds = image_dataset_from_directory(
+    val_dir,
+    image_size=img_size,
+    batch_size=batch_size
+)
+
+class_names = train_ds.class_names
+num_classes = len(class_names)
+
+print("Classes:", class_names)
+
+# ================= PERFORMANCE OPTIMIZATION =================
+AUTOTUNE = tf.data.AUTOTUNE
+train_ds = train_ds.prefetch(buffer_size=AUTOTUNE)
+val_ds = val_ds.prefetch(buffer_size=AUTOTUNE)
+
+# ================= CNN MODEL =================
+model = models.Sequential([
+    layers.Rescaling(1./255, input_shape=(128, 128, 3)),
+
+    layers.Conv2D(32, 3, activation='relu'),
+    layers.MaxPooling2D(),
+
+    layers.Conv2D(64, 3, activation='relu'),
+    layers.MaxPooling2D(),
+
+    layers.Conv2D(128, 3, activation='relu'),
+    layers.MaxPooling2D(),
+
+    layers.Flatten(),
+    layers.Dense(128, activation='relu'),
+    layers.Dropout(0.5),
+
+    layers.Dense(num_classes, activation='softmax')
+])
+
+# ================= COMPILE =================
+model.compile(
+    optimizer='adam',
+    loss='sparse_categorical_crossentropy',
+    metrics=['accuracy']
+)
+
+# ================= TRAIN =================
+history = model.fit(
+    train_ds,
+    validation_data=val_ds,
+    epochs=epochs
+)
+
+# ================= FINAL RESULTS =================
+train_acc = history.history['accuracy'][-1]
+val_acc = history.history['val_accuracy'][-1]
+
+print("\n================ FINAL RESULTS ================")
+print(f"Training Accuracy   : {train_acc*100:.2f}%")
+print(f"Validation Accuracy : {val_acc*100:.2f}%")
+
+
+model.save("wafer_defect_model.h5")
+print("\nModel saved as wafer_defect_model.h5")
